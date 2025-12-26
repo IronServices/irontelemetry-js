@@ -187,11 +187,6 @@ import IronTelemetry, {
 
 Works in all modern browsers (Chrome, Firefox, Safari, Edge) and Node.js 16+.
 
-## Links
-
-- [Documentation](https://www.irontelemetry.com/docs)
-- [Dashboard](https://www.irontelemetry.com)
-
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
