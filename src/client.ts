@@ -17,6 +17,20 @@ import { BreadcrumbManager } from './breadcrumbs';
 import { Journey, JourneyScope, Step, StepScope } from './journey';
 
 /**
+ * Global debug logging flag. When enabled, all IronTelemetry clients
+ * will output debug information to the console.
+ */
+export let enableDebugLogging = false;
+
+/**
+ * Enable or disable global debug logging for all TelemetryClient instances.
+ * @param enabled Whether to enable debug logging
+ */
+export function setDebugLogging(enabled: boolean): void {
+  enableDebugLogging = enabled;
+}
+
+/**
  * Main IronTelemetry client class
  */
 export class TelemetryClient {
@@ -46,7 +60,7 @@ export class TelemetryClient {
       this.flushInterval = setInterval(() => this.processQueue(), 30000);
     }
 
-    if (this.options.debug) {
+    if (this.options.debug || enableDebugLogging) {
       console.log('[IronTelemetry] Initialized with DSN:', this.options.dsn);
     }
   }
@@ -74,6 +88,32 @@ export class TelemetryClient {
   }
 
   /**
+   * Log a structured message with title, message, and optional data.
+   * Useful for structured logging that differentiates the log title from its details.
+   * @param level The severity level of the log
+   * @param title A short, descriptive title for the log entry
+   * @param message Optional detailed message
+   * @param data Optional additional data to attach to the log
+   */
+  async logMessage(
+    level: SeverityLevel,
+    title: string,
+    message?: string,
+    data?: Record<string, unknown>
+  ): Promise<SendResult> {
+    const fullMessage = message ? `${title}: ${message}` : title;
+    const event = this.createEvent(level, fullMessage);
+
+    if (data) {
+      event.extra = { ...event.extra, logTitle: title, logData: data };
+    } else {
+      event.extra = { ...event.extra, logTitle: title };
+    }
+
+    return this.sendEvent(event);
+  }
+
+  /**
    * Add a breadcrumb
    */
   addBreadcrumb(
@@ -94,6 +134,21 @@ export class TelemetryClient {
     } else {
       this.breadcrumbs.addBreadcrumb(messageOrBreadcrumb);
     }
+  }
+
+  /**
+   * Get a copy of the current breadcrumbs list.
+   * @returns A read-only array of breadcrumbs
+   */
+  getBreadcrumbs(): ReadonlyArray<Breadcrumb> {
+    return this.breadcrumbs.getAll();
+  }
+
+  /**
+   * Clear all breadcrumbs.
+   */
+  clearBreadcrumbs(): void {
+    this.breadcrumbs.clear();
   }
 
   /**
@@ -201,7 +256,7 @@ export class TelemetryClient {
   private async sendEvent(event: TelemetryEvent): Promise<SendResult> {
     // Check sample rate
     if (Math.random() > this.options.sampleRate) {
-      if (this.options.debug) {
+      if (this.options.debug || enableDebugLogging) {
         console.log('[IronTelemetry] Event dropped due to sample rate');
       }
       return { success: true, eventId: event.eventId };
@@ -210,7 +265,7 @@ export class TelemetryClient {
     // Apply beforeSend hook
     const beforeSendResult = this.options.beforeSend(event);
     if (beforeSendResult === false) {
-      if (this.options.debug) {
+      if (this.options.debug || enableDebugLogging) {
         console.log('[IronTelemetry] Event dropped by beforeSend hook');
       }
       return { success: true, eventId: event.eventId };
